@@ -9,6 +9,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.servers.Server;
 
 @Configuration
 public class OpenApiConfiguration {
@@ -23,6 +24,7 @@ public class OpenApiConfiguration {
 
 	    return new OpenAPI()
 	            .components(new Components())
+                    .addServersItem(new Server().url("http://minnie.garagekr.com/api/"))
 	            .info(info);
 	  }
 

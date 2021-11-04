@@ -1,5 +1,8 @@
 package com.ibm.inventorymgmt.controller;
 
+import com.ibm.inventorymgmt.entity.ProductEntity;
+import com.ibm.inventorymgmt.services.ProductService;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,43 +37,50 @@ public class InventoryController {
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+    @Autowired
+    private ProductService productService;
+
     @GetMapping("/")
     @Hidden
     public String index() {
         return "Greetings from Spring Boot!";
     }
 
-
     @Operation(summary = "Decreament inventory by given number. It means an order has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @GetMapping("/order")
-    public String order(@RequestParam String productNo, @RequestParam int number) {
+    public String order(@RequestParam String productId, @RequestParam int number) {
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
-        int numOfprod = this.inquiry(productNo);
+        int numOfProd = this.inquiry(productId);
 
-        logger.info("Current number of product : %", numOfprod);
+        logger.info("Current number of product : %", numOfProd);
 
-        if( numOfprod > 0) {
-            hashOperations.put(productNo, "number", Integer.toString(numOfprod-number));
-            return productNo + " is ordered";
+        if( numOfProd > 0) {
+            int inventory = numOfProd - number;
+            hashOperations.put(productId, "number", Integer.toString(inventory));
+            //update mysql
+            productService.updateProduct(productId,inventory);
+            return productId + " is ordered";
         }else {
-            return productNo + " is not available";
+            return productId + " is not available";
         }
     }
-
     
     @Operation(summary = "Increament inventory by given number. It means an order cancellation has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @GetMapping("/cancel")
-    public String cancel(@RequestParam String productNo, @RequestParam int number) {
+    public String cancel(@RequestParam String productId, @RequestParam int number) {
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
         
-        int numOfprod = this.inquiry(productNo);
-        hashOperations.put(productNo, "number", Integer.toString(numOfprod + number));
+        int numOfProd = this.inquiry(productId);
+        int inventory = numOfProd + number;
+        //update mysql
+        productService.updateProduct(productId,inventory);
+        hashOperations.put(productId, "number", Integer.toString(inventory));
         
-        return productNo + " is cancelled";        
+        return productId + " is cancelled";        
     }
     
 
@@ -78,9 +88,9 @@ public class InventoryController {
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @GetMapping("/inquiry")
-    public int inquiry(@RequestParam String productNo) {
+    public int inquiry(@RequestParam String productId) {
         HashOperations<String, Object, Object> hashOperations = redisTemplate.opsForHash();
-        Map<Object, Object> entries = hashOperations.entries(productNo);
+        Map<Object, Object> entries = hashOperations.entries(productId);
         return Integer.valueOf((String)entries.get("number"));
     }
 
@@ -92,13 +102,23 @@ public class InventoryController {
         return redisTemplate.keys("*");
     }
 
+    @Operation(summary = "Prodcuts list in MYSQL")
+    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
+            @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
+    @GetMapping("/products/mysql")
+    public List<ProductEntity> productListMysql(){
+        return productService.getAllProducts();
+    }
+
     @Operation(summary = "Register a new products - test")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @GetMapping("/registration")
-    public void CreateNewProduct(@RequestParam String productNo, @RequestParam int numOfProd) {
+    public void CreateNewProduct(@RequestParam String productId, @RequestParam int numOfProd) {
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
-        hashOperations.put(productNo, "number", Integer.toString(numOfProd));
+        //update mysql
+        productService.insertProduct(productId,numOfProd);
+        hashOperations.put(productId, "number", Integer.toString(numOfProd));
     }
 }
 

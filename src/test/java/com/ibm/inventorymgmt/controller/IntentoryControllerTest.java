@@ -28,7 +28,7 @@ public class IntentoryControllerTest {
     
     @Test
     public void orderTest() throws Exception {
-         mvc.perform(get("/inventory/inquiry?productNo=0002"))
+         mvc.perform(get("/inventory/inquiry?productId=0002"))
         .andExpect(status().isOk())
         .andDo(print());
     }
