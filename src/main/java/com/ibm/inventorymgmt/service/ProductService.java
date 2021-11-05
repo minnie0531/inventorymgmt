@@ -1,4 +1,4 @@
-package com.ibm.inventorymgmt.services;
+package com.ibm.inventorymgmt.service;
 
 import java.util.List;
 

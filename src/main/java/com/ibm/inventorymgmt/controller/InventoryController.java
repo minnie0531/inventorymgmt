@@ -1,11 +1,13 @@
 package com.ibm.inventorymgmt.controller;
 
 import com.ibm.inventorymgmt.entity.ProductEntity;
-import com.ibm.inventorymgmt.services.ProductService;
+import com.ibm.inventorymgmt.service.ProductService;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.validation.Valid;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +16,8 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,15 +53,16 @@ public class InventoryController {
     @Operation(summary = "Decreament inventory by given number. It means an order has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/order")
-    public String order(@RequestParam String productId, @RequestParam int number) {
+    @PostMapping("/order")
+    public String order(@Valid @RequestBody ProductEntity product) {
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
+        String productId = product.getProductId();
         int numOfProd = this.inquiry(productId);
 
         logger.info("Current number of product : %", numOfProd);
 
         if( numOfProd > 0) {
-            int inventory = numOfProd - number;
+            int inventory = numOfProd - product.getNumOfProd();
             hashOperations.put(productId, "number", Integer.toString(inventory));
             //update mysql
             productService.updateProduct(productId,inventory);
@@ -70,12 +75,12 @@ public class InventoryController {
     @Operation(summary = "Increament inventory by given number. It means an order cancellation has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/cancel")
-    public String cancel(@RequestParam String productId, @RequestParam int number) {
+    @PostMapping("/cancel")
+    public String cancel(@Valid @RequestBody ProductEntity product) {
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
-        
+        String productId = product.getProductId();
         int numOfProd = this.inquiry(productId);
-        int inventory = numOfProd + number;
+        int inventory = numOfProd + product.getNumOfProd();
         //update mysql
         productService.updateProduct(productId,inventory);
         hashOperations.put(productId, "number", Integer.toString(inventory));
