@@ -1,0 +1,31 @@
+server:
+  port: 8089
+  servlet:
+    context-path: /api
+logging:
+  file:
+    path: /home/minnie/app/log/
+    max-history: 10
+    max-size: 10MB
+  level:
+    root: info
+    com.ibm.inventorymgmt.controller: trace
+    com.ibm.inventorymgmt.service: trace
+spring:
+  redis:
+    host: ${REDIS_HOST}
+    password: ${REDIS_PW}
+    port: 6379
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL}
+    username: ${MYSQL_ID}
+    password: ${MYSQL_PW}
+  jpa:
+    show-sql: true
+    database: mysql
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
