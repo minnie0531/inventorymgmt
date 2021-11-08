@@ -60,14 +60,14 @@ public class InventoryController {
         String productId = product.getProductId();
         int numOfProd = this.inquiry(productId);
 
-        logger.info("Current the number of product : %", numOfProd);
+        logger.info("Current the number of product : {}", numOfProd);
 
         if( numOfProd > 0) {
             int inventory = numOfProd - product.getNumOfProd();
             hashOperations.put(productId, "number", Integer.toString(inventory));
             //update mysql
             productService.updateProduct(productId,inventory);
-            logger.info("Current the number of inventory : %", inventory);
+            logger.info("Current the number of inventory : {}", inventory);
             
             return productId + " is ordered";
         }else {
@@ -83,12 +83,12 @@ public class InventoryController {
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
         String productId = product.getProductId();
         int numOfProd = this.inquiry(productId);
-        logger.info("Current the number of product : %", numOfProd);
+        logger.info("Current the number of product : {}", numOfProd);
         int inventory = numOfProd + product.getNumOfProd();
         //update mysql
         productService.updateProduct(productId,inventory);
         hashOperations.put(productId, "number", Integer.toString(inventory));
-        logger.info("Current the number of inventory : %", inventory);
+        logger.info("Current the number of inventory : {}", inventory);
         
         return productId + " is cancelled";        
     }
@@ -99,7 +99,7 @@ public class InventoryController {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @GetMapping("/inquiry")
     public int inquiry(@RequestParam String productId) {
-        logger.info("Inquiry the number of product whose id is %:", productId);
+        logger.info("Inquiry the number of product whose id is {}:", productId);
         HashOperations<String, Object, Object> hashOperations = redisTemplate.opsForHash();
         Map<Object, Object> entries = hashOperations.entries(productId);
         return Integer.valueOf((String)entries.get("number"));
@@ -128,7 +128,7 @@ public class InventoryController {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @GetMapping("/products/registration")
     public void createNewProduct(@RequestParam String productId, @RequestParam int numOfProd) {
-        logger.info("User added a new products pruductId: % the number of product: %", productId, numOfProd);
+        logger.info("User added a new products pruductId: {} the number of product: {}", productId, numOfProd);
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
         //update mysql
         productService.insertProduct(productId,numOfProd);
@@ -140,7 +140,7 @@ public class InventoryController {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @DeleteMapping("/products/deletion")
     public void deleteProduct(@RequestParam String productId) {
-        logger.info("User deleted a product whose id is %d", productId);
+        logger.info("User deleted a product whose id is {}", productId);
         HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
         //update mysql
         productService.deleteProduct(productId);

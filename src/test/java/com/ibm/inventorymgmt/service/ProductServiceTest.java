@@ -1,4 +1,4 @@
-package com.ibm.inventorymgmt.controller.services;
+package com.ibm.inventorymgmt.controller.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import com.ibm.inventorymgmt.services.ProductService;
+import com.ibm.inventorymgmt.service.ProductService;
 
 import lombok.extern.slf4j.Slf4j;
 

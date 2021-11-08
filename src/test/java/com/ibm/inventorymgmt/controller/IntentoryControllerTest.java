@@ -1,35 +1,32 @@
-package com.ibm.inventorymgmt.controller;
+ package com.ibm.inventorymgmt.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
+
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsInstanceOf.any;
 
-import lombok.extern.slf4j.Slf4j;
+
 
 @AutoConfigureMockMvc
 @SpringBootTest
-@Slf4j
 public class IntentoryControllerTest {
     @Autowired
     MockMvc mvc;
     
     @Test
+    @WithMockUser(username="user1" , password="password2", roles = "USER")
     public void orderTest() throws Exception {
-         mvc.perform(get("/inventory/inquiry?productId=0002"))
+         mvc.perform(get("/inventory/inquiry?productId=abc123"))
         .andExpect(status().isOk())
         .andDo(print());
     }
 }
+
