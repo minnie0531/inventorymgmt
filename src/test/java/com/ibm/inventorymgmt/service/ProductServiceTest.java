@@ -1,4 +1,4 @@
-package com.ibm.inventorymgmt.controller.service;
+package com.ibm.inventorymgmt.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
