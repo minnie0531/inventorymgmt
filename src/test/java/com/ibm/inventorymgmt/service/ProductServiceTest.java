@@ -24,13 +24,10 @@ public class ProductServiceTest {
         
         assertEquals(100000, productService.getProduct("#0001").getNumOfProd());
         
-        productService.updateProduct("#0001", 200000);
+        productService.updateProductForOrder("#0001", 2);
         
-        assertEquals(200000, productService.getProduct("#0001").getNumOfProd());
+        assertEquals(99998, productService.getProduct("#0001").getNumOfProd());
         
         productService.deleteProduct("#0001");
-
     }
-    
-
 }

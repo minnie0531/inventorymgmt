@@ -14,7 +14,9 @@ public interface ProductService {
     
     public ProductEntity getProduct(String productId);
     
-    public ProductEntity updateProduct(String productId, int numOfProd);
+    public ProductEntity updateProductForOrder(String productId, int numOfProd);
+
+    public ProductEntity updateProductForCancel(String productId, int numOfProd);
 
     public void deleteProduct(String productId);
 

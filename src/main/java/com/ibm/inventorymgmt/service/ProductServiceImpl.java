@@ -36,15 +36,24 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductEntity updateProduct(String productId, int numOfProd) {
+    public ProductEntity updateProductForOrder(String productId, int numOfProd) {
         ProductEntity prod = productRepository.findByProductId(productId);
-        prod.setNumOfProd(numOfProd);
+        int inventory = prod.getNumOfProd() - numOfProd;
+        prod.setNumOfProd(inventory);
         return productRepository.save(prod);
     }
 
     @Override
     public void deleteProduct(String productId) {
         productRepository.deleteByProductId(productId);      
+    }
+
+    @Override
+    public ProductEntity updateProductForCancel(String productId, int numOfProd) {
+        ProductEntity prod = productRepository.findByProductId(productId);
+        int inventory = prod.getNumOfProd() + numOfProd;
+        prod.setNumOfProd(inventory);
+        return productRepository.save(prod);
     }
 
 }

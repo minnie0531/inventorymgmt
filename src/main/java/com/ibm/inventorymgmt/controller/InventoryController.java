@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,45 +56,90 @@ public class InventoryController {
     @Operation(summary = "Decreament inventory by given number. It means an order has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @PostMapping("/order")
+    @PostMapping("/orders")
+    @Transactional
     public String order(@Valid @RequestBody ProductEntity product) {
-        HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
+        ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
         String productId = product.getProductId();
-        int numOfProd = this.inquiry(productId);
+        int currentOrder = 0;
 
-        logger.info("Current the number of product : {}", numOfProd);
+        //Check if the product exists
+        if (redisTemplate.hasKey(productId)) {
+            //Check if there is the same products order is ongoing
+            if (redisTemplate.hasKey(productId + "-ongoing")) {
+                currentOrder = Integer.valueOf(setOperations.get(productId + "-ongoing"));
+            }
 
-        if( numOfProd > 0) {
-            int inventory = numOfProd - product.getNumOfProd();
-            hashOperations.put(productId, "number", Integer.toString(inventory));
-            //update mysql
-            productService.updateProduct(productId,inventory);
-            logger.info("Current the number of inventory : {}", inventory);
-            
-            return productId + " is ordered";
-        }else {
-            return productId + " is not available";
+            //available inventory?
+            int numOfProd = Integer.valueOf(setOperations.get(productId)) - currentOrder ;
+            logger.info("Current the number of product : {}", numOfProd);
+
+            if( numOfProd > 0) {
+                //current ongoing order increment
+                setOperations.increment(productId + "-ongoing", product.getNumOfProd());
+                logger.info("ongoin oder {}" , setOperations.get(productId + "-ongoing"));
+                return "Order for " + productId + " is ongoing";
+            }else {
+                return productId + " is not available";
+            }
+        } else {
+            return productId + " does not exists";
         }
     }
-    
+
+    @Operation(summary = "Order complete")
+    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
+            @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
+    @PostMapping("/orders/completed")
+    @Transactional
+    public void orderCommit(@Valid @RequestBody ProductEntity product) throws Exception{
+        //Actual inventory is updated
+        String productId = product.getProductId();
+        ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
+        //실제 재고 수량에 대한 감
+        setOperations.decrement(productId, product.getNumOfProd());
+        //현재 진행중인 order 감소
+        setOperations.decrement(productId + "-ongoing", product.getNumOfProd());
+        //Update mysql
+        productService.updateProductForOrder(product.getProductId(),product.getNumOfProd());
+    }
+
     @Operation(summary = "Increament inventory by given number. It means an order cancellation has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @PostMapping("/cancel")
+    @Transactional
     public String cancel(@Valid @RequestBody ProductEntity product) {
-        HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
+        ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
         String productId = product.getProductId();
-        int numOfProd = this.inquiry(productId);
-        logger.info("Current the number of product : {}", numOfProd);
-        int inventory = numOfProd + product.getNumOfProd();
-        //update mysql
-        productService.updateProduct(productId,inventory);
-        hashOperations.put(productId, "number", Integer.toString(inventory));
-        logger.info("Current the number of inventory : {}", inventory);
-        
-        return productId + " is cancelled";        
+
+        //Check if the product exists
+        if (redisTemplate.hasKey(productId)) {
+            //Check if there is the same products order is ongoing
+            if (redisTemplate.hasKey(productId + "-ongoing")) {
+                setOperations.decrement(productId + "-ongoing", product.getNumOfProd());
+            }
+            return "Order for " + productId + " is cancelled";
+
+        } else {
+            return productId + " does not exists";
+        }
     }
-    
+
+    @Operation(summary = "Increament inventory by given number. It means an order cancellation has been started")
+    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
+            @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
+    @PostMapping("/cancel/completed")
+    @Transactional
+    public void cancelCommit(@Valid @RequestBody ProductEntity product) {
+        //Actual inventory is updated
+        String productId = product.getProductId();
+        ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
+        //실제 재고 수량에 대한 감
+        setOperations.increment(productId, product.getNumOfProd());
+        //Update mysql
+        productService.updateProductForCancel(product.getProductId(),product.getNumOfProd());
+    }
 
     @Operation(summary = "The number of products")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
@@ -100,9 +147,9 @@ public class InventoryController {
     @GetMapping("/inquiry")
     public int inquiry(@RequestParam String productId) {
         logger.info("Inquiry the number of product whose id is {}:", productId);
-        HashOperations<String, Object, Object> hashOperations = redisTemplate.opsForHash();
-        Map<Object, Object> entries = hashOperations.entries(productId);
-        return Integer.valueOf((String)entries.get("number"));
+        ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
+
+        return Integer.valueOf(setOperations.get(productId));
     }
 
     @Operation(summary = "Prodcuts list")
@@ -120,7 +167,7 @@ public class InventoryController {
     @GetMapping("/products/mysql")
     public List<ProductEntity> productListMysql(){
         logger.info("All Products in Mysql");
-        return productService.getAllProducts();
+        return productService.getAllProducts(); 
     }
 
     @Operation(summary = "Register a new products - test")
@@ -129,10 +176,10 @@ public class InventoryController {
     @GetMapping("/products/registration")
     public void createNewProduct(@RequestParam String productId, @RequestParam int numOfProd) {
         logger.info("User added a new products pruductId: {} the number of product: {}", productId, numOfProd);
-        HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
+        ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
         //update mysql
         productService.insertProduct(productId,numOfProd);
-        hashOperations.put(productId, "number", Integer.toString(numOfProd));
+        setOperations.set(productId, Integer.toString(numOfProd));
     }
 
     @Operation(summary = "Delete the product by given productId - test")
@@ -141,10 +188,9 @@ public class InventoryController {
     @DeleteMapping("/products/deletion")
     public void deleteProduct(@RequestParam String productId) {
         logger.info("User deleted a product whose id is {}", productId);
-        HashOperations<String, Object,  Object> hashOperations = redisTemplate.opsForHash();
         //update mysql
         productService.deleteProduct(productId);
-        hashOperations.delete(productId, "number");
+        redisTemplate.delete(productId);
     }
 
 }
