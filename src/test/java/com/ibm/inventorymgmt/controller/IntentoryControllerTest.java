@@ -67,5 +67,51 @@ public class IntentoryControllerTest {
          .andDo(print());
 
     }
+
+    @Test
+    @WithMockUser(username="user1" , password="password1", roles = "USER")
+    public void orderCancelTest() throws Exception{
+        logger.info("Product registration");
+        mvc.perform(get("/inventory/products/registration?productId=canceltest&numOfProd=300"))
+        .andExpect(status().isOk())
+        .andDo(print());
+
+        // 상품 확인
+        logger.info("Product inquiry");
+        mvc.perform(get("/inventory/inquiry?productId=canceltest"))
+        .andExpect(status().isOk())
+        .andExpect(content().string("300"));
+
+         // 주문 시작
+        logger.info("Order started");
+         String contents = "{\"productId\" : \"canceltest\", \"numOfProd\" : 2}";
+         mvc.perform(post("/inventory/orders").contentType(MediaType.APPLICATION_JSON).content(contents))
+            .andExpect(status().isOk())
+            .andExpect(content().string("Order for canceltest is ongoing"));
+
+         // 진행중인 상품 확인
+         logger.info("Product inquiry");
+         mvc.perform(get("/inventory/inquiry?productId=canceltest-ongoing"))
+         .andExpect(status().isOk())
+         .andExpect(content().string("2"));
+
+         // 주문 중 취소
+         logger.info("Order cancel");
+         mvc.perform(post("/inventory/orders/canceled").contentType(MediaType.APPLICATION_JSON).content(contents))
+        .andExpect(status().isOk())
+        .andExpect(content().string("ongoing order for canceltest is canceled"));
+
+         // 진행중인 상품 확인
+         logger.info("Product inquiry");
+         mvc.perform(get("/inventory/inquiry?productId=canceltest-ongoing"))
+         .andExpect(status().isOk())
+         .andExpect(content().string("0"));
+
+         // 상품 삭제
+         logger.info("Product deleted");
+         mvc.perform(delete("/inventory/products/deletion?productId=canceltest"))
+         .andExpect(status().isOk())
+         .andDo(print());
+    }
 }
 
