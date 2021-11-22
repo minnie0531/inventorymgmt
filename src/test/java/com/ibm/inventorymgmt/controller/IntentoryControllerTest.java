@@ -103,7 +103,7 @@ public class IntentoryControllerTest {
 
          // 주문 중 취소
          logger.info("Order cancel");
-         mvc.perform(post("/inventory/orders/canceled").contentType(MediaType.APPLICATION_JSON).content(contents))
+         mvc.perform(post("/inventory/orders/cancelled").contentType(MediaType.APPLICATION_JSON).content(contents))
         .andExpect(status().isOk())
         .andExpect(content().string("ongoing order for canceltest is canceled"));
 
