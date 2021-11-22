@@ -95,6 +95,12 @@ public class IntentoryControllerTest {
          .andExpect(status().isOk())
          .andExpect(content().string("2"));
 
+         // 진행중인 상품 확인
+         logger.info("Product inquiry");
+         mvc.perform(get("/inventory/inquiry/available?productId=canceltest"))
+         .andExpect(status().isOk())
+         .andExpect(content().string("298"));
+
          // 주문 중 취소
          logger.info("Order cancel");
          mvc.perform(post("/inventory/orders/canceled").contentType(MediaType.APPLICATION_JSON).content(contents))

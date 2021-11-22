@@ -3,6 +3,7 @@ package com.ibm.inventorymgmt.controller;
 import com.ibm.inventorymgmt.entity.ProductEntity;
 import com.ibm.inventorymgmt.service.ProductService;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -133,17 +134,16 @@ public class InventoryController {
         productService.updateProductForOrder(product.getProductId(),product.getNumOfProd());
     }
 
-    @Operation(summary = "Order canceled")
+    @Operation(summary = "Order cancelled")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @PostMapping("/orders/canceled")
+    @PostMapping("/orders/cancelled")
     public String orderCancel(@Valid @RequestBody ProductEntity product) throws Exception{
         String productId = product.getProductId();
         String ongoingId = productId + "-ongoing";
 
         if (redisTemplate.hasKey(productId) && 
                 Integer.valueOf(redisTemplate.opsForValue().get(ongoingId).toString()) >= 1) {
-        //Actual inventory is updated
             List<Object> txResults = redisTemplate.execute(new SessionCallback<List<Object>>() {
                 @SuppressWarnings("unchecked")
                 public List<Object> execute(RedisOperations operations) throws DataAccessException {
@@ -208,6 +208,30 @@ public class InventoryController {
         ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
 
         return Integer.valueOf(setOperations.get(productId));
+    }
+
+    @Operation(summary = "Available the number of products")
+    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
+            @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
+    @GetMapping("/inquiry/available")
+    public int inquiryAvailable(@RequestParam String productId) {
+        logger.info("Inquiry the number of product whose id is {}:", productId);
+        List<Object> txResults = redisTemplate.execute(new SessionCallback<List<Object>>() {
+            @SuppressWarnings("unchecked")
+            public List<Object> execute(RedisOperations operations) throws DataAccessException {
+                int currentOrder = 0;
+                if (operations.hasKey(productId + "-ongoing")) {
+                    currentOrder = Integer.valueOf(operations.opsForValue().get(productId + "-ongoing").toString());
+                }
+                List<Object> result = new ArrayList<>();
+
+                result.add(Integer.valueOf(operations.opsForValue().get(productId).toString()) - currentOrder);
+
+                return result;
+            }
+        });
+
+        return Integer.valueOf(txResults.get(0).toString());
     }
 
     @Operation(summary = "Prodcuts list")
