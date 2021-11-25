@@ -17,7 +17,7 @@ public class ProductServiceTest {
     @Autowired
     private ProductService productService;
     
-    @Test
+   // @Test
     public void ProductServiceTest() throws Exception {
         
         productService.insertProduct("#0001",100000);
