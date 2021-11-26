@@ -15,6 +15,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,21 +42,11 @@ public class ProductController {
 
     @Autowired
     private ProductService productService;
-    
-
-    @Operation(summary = "Prodcuts list")
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
-            @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/redis/all")
-    public Set<String> productList(){
-        logger.info("All product Id in Redis");
-        return redisTemplate.keys("*");
-    }
 
     @Operation(summary = "Prodcuts list in MYSQL")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/mysql/all")
+    @GetMapping("/mysqlAll")
     public List<ProductEntity> productListMysql(){
         logger.info("All Products in Mysql");
         return productService.getAllProducts(); 
@@ -64,8 +55,8 @@ public class ProductController {
     @Operation(summary = "The number of products")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/redis/inventory")
-    public int redisInventory(@RequestParam String productId) {
+    @GetMapping("/{productId}/redis")
+    public int redisInventory(@PathVariable String productId) {
         logger.info("Inquiry the number of product whose id is {}:", productId);
         ValueOperations<String, String> setOperations = redisTemplate.opsForValue();
 
@@ -75,8 +66,8 @@ public class ProductController {
     @Operation(summary = "The number of products")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/mysql/inventory")
-    public int mysqlInventory(@RequestParam String productId) {
+    @GetMapping("/{productId}/mysql")
+    public int mysqlInventory(@PathVariable String productId) {
         logger.info("Inquiry the number of product whose id is {}:", productId);
 
         return productService.getProduct(productId).getNumOfProd();
@@ -85,8 +76,8 @@ public class ProductController {
     @Operation(summary = "Available the number of products")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/redis/inventory/available")
-    public int inquiryAvailable(@RequestParam String productId) {
+    @GetMapping("/{productId}/redis/available")
+    public int inquiryAvailable(@PathVariable String productId) {
         logger.info("Inquiry the number of product whose id is {}:", productId);
         List<Object> txResults = redisTemplate.execute(new SessionCallback<List<Object>>() {
             @SuppressWarnings("unchecked")
@@ -105,6 +96,7 @@ public class ProductController {
 
         return Integer.valueOf(txResults.get(0).toString());
     }
+
     @Operation(summary = "Register a new products - test")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})

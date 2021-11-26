@@ -1,5 +1,7 @@
 package com.ibm.inventorymgmt.service;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +18,6 @@ public class OrderServiceImpl implements OrderService {
     private OrderRepository orderRepository;
 
     public OrderEntity createOrder(OrderEntity order) {
-        // TODO Auto-generated method stub
         return orderRepository.save(order);
     }
 
@@ -33,6 +34,11 @@ public class OrderServiceImpl implements OrderService {
     
     public void deleteOrder(String orderNumber) {
         orderRepository.deleteByOrderNumber(orderNumber);      
+    }
+
+    @Override
+    public List<OrderEntity> getAllProducts() {
+        return orderRepository.findAll();
     }
 
 }

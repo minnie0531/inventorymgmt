@@ -103,7 +103,7 @@ public class OrderControllerTest {
 
          // 주문 중 취소
          logger.info("Order cancel");
-         mvc.perform(post("/inventory/orders/cancelled").contentType(MediaType.APPLICATION_JSON).content(contents))
+         mvc.perform(post("/inventory/orders/canceled").contentType(MediaType.APPLICATION_JSON).content(contents))
         .andExpect(status().isOk())
         .andExpect(content().string("ongoing order for canceltest is canceled"));
 
@@ -119,7 +119,7 @@ public class OrderControllerTest {
          .andExpect(status().isOk())
          .andDo(print());
     }
-    
+
     @Test
     @WithMockUser(username="user1" , password="password1", roles = "USER")
     public void orderTestWithOrders() throws Exception {
@@ -131,7 +131,7 @@ public class OrderControllerTest {
 
         //상품 확인
         logger.info("Product inquiry");
-        mvc.perform(get("/products/redis/inventory?productId=unitTest123"))
+        mvc.perform(get("/products/unitTest123/redis"))
         .andExpect(status().isOk())
         .andExpect(content().string("99876"));
 
@@ -148,40 +148,44 @@ public class OrderControllerTest {
          //추가 주문
          logger.info("check inventory");
 
-         mvc.perform(get("/products/redis/inventory/available?productId=unitTest123"))
+         mvc.perform(get("/products/unitTest123/redis/available"))
          .andExpect(status().isOk())
          .andExpect(content().string("99871"));
 
-         mvc.perform(get("/products/redis/inventory?productId=unitTest123"))
+         mvc.perform(get("/products/unitTest123/redis"))
          .andExpect(status().isOk())
          .andExpect(content().string("99876"));
 
          //주문 complete
          logger.info("Order completed");
-         mvc.perform(post("/orders/completed?orderNumber=" + orderNumber))
+         mvc.perform(post("/orders/"+ orderNumber + "/completed"))
          .andExpect(status().isOk())
          .andDo(print());
 
          logger.info("check mysql and redis");
-         mvc.perform(get("/products/redis/inventory?productId=unitTest123"))
+         mvc.perform(get("/products/unitTest123/redis"))
          .andExpect(status().isOk())
          .andExpect(content().string("99871"));
-         mvc.perform(get("/products/mysql/inventory?productId=unitTest123"))
+         mvc.perform(get("/products/unitTest123/mysql"))
          .andExpect(status().isOk())
-         .andExpect(content().string("99871"));        
+         .andExpect(content().string("99871"));
 
          //상품 확인
          logger.info("order inquiry");
-         mvc.perform(get("/orders?orderNumber=" + orderNumber))
+         mvc.perform(get("/orders/" + orderNumber + "/redis"))
          .andExpect(status().isOk())
          .andDo(print());
-         
+
+         mvc.perform(get("/orders/" + orderNumber + "/mysql"))
+         .andExpect(status().isOk())
+         .andDo(print());
+
          //상품 삭제
          logger.info("Product deleted");
          mvc.perform(delete("/products/deletion?productId=unitTest123"))
          .andExpect(status().isOk())
          .andDo(print());
- 
+
          logger.info("Order deleted");
          mvc.perform(delete("/orders/deletion?orderNumber=" + orderNumber))
          .andExpect(status().isOk())

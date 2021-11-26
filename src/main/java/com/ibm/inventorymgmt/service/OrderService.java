@@ -1,8 +1,12 @@
 package com.ibm.inventorymgmt.service;
 
+import java.util.List;
+
 import com.ibm.inventorymgmt.entity.OrderEntity;
 
 public interface OrderService {
+    
+    public List<OrderEntity> getAllProducts();
     
     public OrderEntity createOrder(OrderEntity order);
    

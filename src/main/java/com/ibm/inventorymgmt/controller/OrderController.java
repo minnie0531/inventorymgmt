@@ -24,6 +24,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -126,16 +127,16 @@ public class OrderController {
     @Operation(summary = "Order complete")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @PostMapping("/completed")
-    public void orderCommit(@RequestParam String orderNumber) throws Exception{
+    @PostMapping("/{orderNumber}/completed")
+    public void orderCommit(@PathVariable String orderNumber) throws Exception{
         //Actual inventory is updated
         OrderEntity order = orderInquiry(orderNumber);
         String productId = order.getProductId();
         int numOfProd = order.getNumOfProd();
+
         List<Object> txResults = redisTemplate.execute(new SessionCallback<List<Object>>() {
             @SuppressWarnings("unchecked")
             public List<Object> execute(RedisOperations operations) throws DataAccessException {
-                            
                 operations.multi();
                 //실제 재고 수량에 대한 감소
                 operations.opsForValue().decrement(productId, numOfProd);
@@ -153,11 +154,19 @@ public class OrderController {
          });
     }
 
+    @Operation(summary = "Orders find by order numbers in mysql")
+    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
+            @Content(mediaType = "application/json", schema = @Schema(implementation = OrderEntity.class))})})
+    @GetMapping("/{orderNumber}/mysql")
+    public OrderEntity ordersInMysql(@PathVariable String orderNumber){
+        return orderService.getOrderByOrderNumber(orderNumber);
+    }
+
     @Operation(summary = "Order contents")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = OrderEntity.class))})})
-    @GetMapping("")
-    public OrderEntity orderInquiry(@RequestParam String orderNumber) throws Exception{
+    @GetMapping("/{orderNumber}/redis")
+    public OrderEntity orderInquiry(@PathVariable String orderNumber) throws Exception{
         //Actual inventory is updated
         HashOperations<String, Object, Object> setOperations = redisTemplate.opsForHash();
         Collection<Object> orderKeys = new ArrayList<>();
@@ -176,17 +185,7 @@ public class OrderController {
         return order;
     }
 
-    @Operation(summary = "User history")
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
-            @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/user/history")
-    public List<String> userHistory(@RequestParam String userName) throws Exception{
-        //Actual inventory is updated
-        Long size = redisTemplate.opsForList().size(userName);
-        return redisTemplate.opsForList().range(userName, 0, size);
-    }
-
-    @Operation(summary = "User history")
+    @Operation(summary = "Order processing queue to sync-up between mysql and redis")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
     @GetMapping("/process")
@@ -199,18 +198,18 @@ public class OrderController {
     @Operation(summary = "Order cancelled")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @GetMapping("/cancelled")
-    public String orderCancel(@RequestParam String orderNumber) throws Exception{
+    @PostMapping("/{orderNumber}/cancelled")
+    public String orderCancel(@PathVariable String orderNumber) throws Exception{
         ProductEntity product = (ProductEntity) redisTemplate.opsForHash().get(orderNumber, "products");
         String user = redisTemplate.opsForHash().get(orderNumber, "userName").toString();
         String productId = product.getProductId();
         String ongoingId = product.getProductId() + "-ongoing";
+
         if (redisTemplate.hasKey(orderNumber) && 
                 Integer.valueOf(redisTemplate.opsForValue().get(ongoingId).toString()) >= 1) {
             List<Object> txResults = redisTemplate.execute(new SessionCallback<List<Object>>() {
                 @SuppressWarnings("unchecked")
                 public List<Object> execute(RedisOperations operations) throws DataAccessException {
-
                     operations.multi();
                     // history 삭
                     operations.opsForList().remove(user + "-history", 1, orderNumber);
@@ -233,15 +232,20 @@ public class OrderController {
     @Operation(summary = "Increament inventory by given number. It means an order cancellation has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @PostMapping("/cancellation")
-    public String cancel(@Valid @RequestBody ProductEntity product) {
-        String productId = product.getProductId();
-
-        // 주문 완료했던 사용자만 사용가능 - 앞에서 로직으로 처리
-        // status만 확인 진행중인 주문에 대해 영향을 주지 않도록 함.
-        // cancel 이 완료된 시점에 실제 재고만 감소하도록
-        // Check if the product exists
+    @PostMapping("/cancellation/{orderNumber}")
+    public String cancel(@Valid @PathVariable String orderNumber) throws Exception {
+        OrderEntity order = orderInquiry(orderNumber);
+        String productId = order.getProductId();
+        int numOfProd = order.getNumOfProd();
         if (redisTemplate.hasKey(productId)) {
+            List<Object> txResults = redisTemplate.execute(new SessionCallback<List<Object>>() {
+                @SuppressWarnings("unchecked")
+                public List<Object> execute(RedisOperations operations) throws DataAccessException {
+                    operations.multi();
+                    operations.opsForHash().put(orderNumber, "status", "cancelling");
+                    return operations.exec();
+                }
+            });
             return "Order for " + productId + " is cancelled";
         }else {
             return productId + " does not exists";
@@ -251,20 +255,22 @@ public class OrderController {
     @Operation(summary = "Increament inventory by given number. It means an order cancellation has been started")
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Success", content = {
             @Content(mediaType = "application/json", schema = @Schema(implementation = String.class))})})
-    @PostMapping("/cancellation/completed")
-    public void cancelCommit(@Valid @RequestBody ProductEntity product, @RequestParam String orderNumber) {
+    @PostMapping("/cancellation/{orderNumber}/completed")
+    public void cancelCommit(@PathVariable String orderNumber) throws Exception {
+        OrderEntity order = orderInquiry(orderNumber);
+        String productId = order.getProductId();
+        int numOfProd = order.getNumOfProd();
         //Actual inventory is updated
         List<Object> txResults = redisTemplate.execute(new SessionCallback<List<Object>>() {
             @SuppressWarnings("unchecked")
             public List<Object> execute(RedisOperations operations) throws DataAccessException {
-                String productId = product.getProductId();
                 operations.multi();
                 //실제 재고 수량에 대한 증가
-                operations.opsForValue().increment(productId, product.getNumOfProd());
+                operations.opsForValue().increment(productId, numOfProd);
                 // order status change
                 operations.opsForHash().put(orderNumber, "status", "cancelled");
                 //Update mysql for inventory
-                productService.updateProductForCancel(product.getProductId(),product.getNumOfProd());
+                productService.updateProductForCancel(productId,numOfProd);
                 orderService.updateOrderStatus(orderNumber, "cancelled");
                 return operations.exec();
             }
@@ -280,7 +286,6 @@ public class OrderController {
         //update mysql
         orderService.deleteOrder(orderNumber);
         redisTemplate.delete(orderNumber);
-
     }
 
     /**
