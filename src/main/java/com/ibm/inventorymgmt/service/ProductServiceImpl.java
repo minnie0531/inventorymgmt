@@ -40,7 +40,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public ProductEntity updateProductForOrder(String productId, int numOfProd) {
         ProductEntity prod = productRepository.findByProductId(productId);
         int inventory = prod.getNumOfProd() - numOfProd;
@@ -55,7 +54,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public ProductEntity updateProductForCancel(String productId, int numOfProd) {
         ProductEntity prod = productRepository.findByProductId(productId);
         int inventory = prod.getNumOfProd() + numOfProd;
