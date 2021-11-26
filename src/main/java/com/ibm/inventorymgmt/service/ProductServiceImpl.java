@@ -2,7 +2,10 @@ package com.ibm.inventorymgmt.service;
 
 import java.util.List;
 
+import javax.persistence.LockModeType;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +39,8 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public ProductEntity updateProductForOrder(String productId, int numOfProd) {
         ProductEntity prod = productRepository.findByProductId(productId);
         int inventory = prod.getNumOfProd() - numOfProd;
@@ -49,6 +54,8 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     public ProductEntity updateProductForCancel(String productId, int numOfProd) {
         ProductEntity prod = productRepository.findByProductId(productId);
         int inventory = prod.getNumOfProd() + numOfProd;

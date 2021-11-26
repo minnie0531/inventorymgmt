@@ -131,6 +131,7 @@ public class OrderController {
     public void orderCommit(@PathVariable String orderNumber) throws Exception{
         //Actual inventory is updated
         OrderEntity order = orderInquiry(orderNumber);
+        order.setStatus("ordered");
         String productId = order.getProductId();
         int numOfProd = order.getNumOfProd();
 
@@ -258,6 +259,7 @@ public class OrderController {
     @PostMapping("/cancellation/{orderNumber}/completed")
     public void cancelCommit(@PathVariable String orderNumber) throws Exception {
         OrderEntity order = orderInquiry(orderNumber);
+        order.setStatus("cancelled");
         String productId = order.getProductId();
         int numOfProd = order.getNumOfProd();
         //Actual inventory is updated
